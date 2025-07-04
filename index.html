@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLUM REQUENA - Gestión de Obras</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #FF8C00;
+            --secondary: #FF6B00;
+            --accent: #FFB84D;
+            --light: #FFF4E6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        }
+        
+        .gradient-light {
+            background: linear-gradient(135deg, var(--light) 0%, #ffffff 100%);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.3s ease;
+        }
+        
+        .tab-active {
+            color: var(--primary);
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .estado-planificacion { background: var(--warning); }
+        .estado-en_curso { background: var(--primary); }
+        .estado-pausada { background: var(--danger); }
+        .estado-terminada { background: var(--success); }
+        
+        .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn {
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .icon {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+        
+        .icon-lg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .overflow-scroll {
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+        }
+        
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 999;
+        }
+        
+        .logo-icon {
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 2px;
+            transform: rotate(12deg);
+            clip-path: polygon(0 0, 70% 0, 100% 100%, 30% 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <div class="sticky top-0 z-40 bg-white shadow-sm border-b-2" style="border-color: var(--accent)">
+        <div class="flex items-center justify-between p-4 gradient-light">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center gradient-bg">
+                    <div class="logo-icon"></div>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold" style="color: var(--primary)">LLUM REQUENA</h1>
+                    <p class="text-xs text-gray-500">Gestión de Obras</p>
+                </div>
+            </div>
+            
+            <button id="btnNuevaObra" class="flex items-center gap-2 text-white py-2 px-4 rounded-lg shadow-md btn gradient-bg">
+                <span class="icon">+</span>
+                Nueva Obra
+            </button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex border-b">
+            <button id="tabObras" class="flex items-center gap-2 px-4 py-3 border-b-2 tab-active">
+                <span class="icon">📄</span>
+                Obras
+            </button>
+            <button id="tabResumen" class="flex items-center gap-2 px-4 py-3 border-b-2 border-transparent text-gray-500">
+                <span class="icon">✓</span>
+                Resumen
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="p-4">
+        <!-- Obras Tab -->
+        <div id="contentObras" class="space-y-4">
+            <!-- Search -->
+            <div class="relative">
+                <span class="absolute left-3 top-3 text-gray-400">🔍</span>
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Buscar obras..."
+                    class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2"
+                    style="--tw-ring-color: var(--primary)"
+                />
+            </div>
+
+            <!-- Obras Grid -->
+            <div id="obrasGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Las obras se cargarán aquí dinámicamente -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-12 hidden">
+                <span class="text-4xl text-gray-400 mb-4 block">📄</span>
+                <h3 class="text-lg font-medium text-gray-500 mb-2">No hay obras registradas</h3>
+                <p class="text-gray-400">Comienza creando tu primera obra</p>
+            </div>
+        </div>
+
+        <!-- Resumen Tab -->
+        <div id="contentResumen" class="space-y-6 hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <h3 class="text-sm font-medium text-gray-500">Total Obras</h3>
+                    <p id="totalObras" class="text-2xl font-bold" style="color: var(--primary)">0</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <h3 class="text-sm font-medium text-gray-500">En Curso</h3>
+                    <p id="obrasEnCurso" class="text-2xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <h3 class="text-sm font-medium text-gray-500">Terminadas</h3>
+                    <p id="obrasTerminadas" class="text-2xl font-bold text-green-600">0</p>
+                </div>
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <h3 class="text-sm font-medium text-gray-500">Pausadas</h3>
+                    <p id="obrasPausadas" class="text-2xl font-bold text-red-600">0</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-6 shadow-sm">
+                <h3 class="text-lg font-semibold mb-4">Obras Recientes</h3>
+                <div id="obrasRecientes" class="space-y-3">
+                    <!-- Las obras recientes se cargarán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nueva/Editar Obra -->
+    <div id="modalObra" class="modal hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+            <h2 id="modalTitle" class="text-2xl font-bold mb-4" style="color: var(--primary)">Nueva Obra</h2>
+            
+            <form id="formObra" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre de la Obra</label>
+                        <input type="text" id="nombre" class="w-full border rounded-lg px-3 py-2" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Cliente</label>
+                        <input type="text" id="cliente" class="w-full border rounded-lg px-3 py-2" required>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Dirección</label>
+                    <input type="text" id="direccion" class="w-full border rounded-lg px-3 py-2">
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Estado</label>
+                        <select id="estado" class="w-full border rounded-lg px-3 py-2">
+                            <option value="planificacion">Planificación</option>
+                            <option value="en_curso">En Curso</option>
+                            <option value="pausada">Pausada</option>
+                            <option value="terminada">Terminada</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Presupuesto (€)</label>
+                        <input type="number" id="presupuesto" class="w-full border rounded-lg px-3 py-2" step="0.01">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha de Inicio</label>
+                        <input type="date" id="fechaInicio" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Fecha Estimada de Fin</label>
+                        <input type="date" id="fechaEstimadaFin" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Descripción</label>
+                    <textarea id="descripcion" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="submit" class="flex-1 text-white py-2 px-4 rounded-lg font-medium btn gradient-bg">
+                        Guardar Obra
+                    </button>
+                    <button type="button" id="btnCancelar" class="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg font-medium">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Detalle Obra -->
+    <div id="modalDetalle" class="fullscreen hidden">
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between p-4 border-b gradient-light">
+                <h2 id="detalleTitle" class="text-xl font-bold" style="color: var(--primary)">Detalle de Obra</h2>
+                <button id="btnCerrarDetalle" class="p-2 rounded-lg bg-gray-200 hover:bg-gray-300">✕</button>
+            </div>
+
+            <div class="flex-1 overflow-hidden flex flex-col">
+                <div class="flex overflow-x-auto border-b">
+                    <button id="tabResumenDetalle" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap border-b-2 tab-active">
+                        <span class="icon">📄</span>
+                        Resumen
+                    </button>
+                    <button id="tabMateriales" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap border-b-2 border-transparent text-gray-500">
+                        <span class="icon">€</span>
+                        Materiales
+                    </button>
+                    <button id="tabHoras" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap border-b-2 border-transparent text-gray-500">
+                        <span class="icon">⏰</span>
+                        Horas
+                    </button>
+                    <button id="tabFases" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap border-b-2 border-transparent text-gray-500">
+                        <span class="icon">✓</span>
+                        Fases
+                    </button>
+                    <button id="tabFotos" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap border-b-2 border-transparent text-gray-500">
+                        <span class="icon">📷</span>
+                        Fotos
+                    </button>
+                    <button id="tabComentarios" class="flex items-center gap-2 px-4 py-3 whitespace-nowrap border-b-2 border-transparent text-gray-500">
+                        <span class="icon">💬</span>
+                        Comentarios
+                    </button>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-4">
+                    <div id="detalleContent">
+                        <!-- El contenido se cargará dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Estado global de la aplicación
+        let appState = {
+            obras: [],
+            activeTab: 'obras',
+            activeDetailTab: 'resumen',
+            selectedObra: null,
+            editingObra: null,
+            searchTerm: ''
+        };
+
+        // Datos de configuración
+        const estadosObra = [
+            { id: 'planificacion', nombre: 'Planificación', color: '#f59e0b' },
+            { id: 'en_curso', nombre: 'En Curso', color: '#FF8C00' },
+            { id: 'pausada', nombre: 'Pausada', color: '#ef4444' },
+            { id: 'terminada', nombre: 'Terminada', color: '#10b981' }
+        ];
+
+        const fasesComunes = [
+            'Instalación de cuadro eléctrico',
+            'Canalización y tubos',
+            'Cableado general',
+            'Puntos de luz',
+            'Enchufes y tomas',
+            'Conexiones especiales',
+            'Pruebas y certificación'
+        ];
+
+        // Utilidades
+        function formatDate(date) {
+            return new Date(date).toLocaleDateString('es-ES');
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('es-ES', {
+                style: 'currency',
+                currency: 'EUR'
+            }).format(amount);
+        }
+
+        function getEstadoInfo(estadoId) {
+            return estadosObra.find(e => e.id === estadoId) || estadosObra[0];
+        }
+
+        // Funciones de renderizado
+        function renderObras() {
+            const grid = document.getElementById('obrasGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            const filteredObras = appState.obras.filter(obra =>
+                obra.nombre.toLowerCase().includes(appState.searchTerm.toLowerCase()) ||
+                obra.cliente.toLowerCase().includes(appState.searchTerm.toLowerCase())
+            );
+
+            if (filteredObras.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            
+            grid.innerHTML = filteredObras.map(obra => {
+                const estadoInfo = getEstadoInfo(obra.estado);
+                return `
+                    <div class="bg-white rounded-lg shadow-sm border p-4 card">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-semibold text-lg">${obra.nombre}</h3>
+                            <span class="px-2 py-1 rounded text-xs text-white" style="background-color: ${estadoInfo.color}">
+                                ${estadoInfo.nombre}
+                            </span>
+                        </div>
+                        
+                        <div class="space-y-2 text-sm text-gray-600">
+                            <p><strong>Cliente:</strong> ${obra.cliente}</p>
+                            <p><strong>Dirección:</strong> ${obra.direccion || 'No especificada'}</p>
+                            <p><strong>Presupuesto:</strong> ${formatCurrency(obra.presupuesto || 0)}</p>
+                        </div>
+                        
+                        <div class="flex gap-2 mt-4">
+                            <button onclick="verDetalle('${obra.id}')" class="flex-1 text-white py-2 px-3 rounded-lg text-sm btn gradient-bg">
+                                Ver Detalles
+                            </button>
+                            <button onclick="editarObra('${obra.id}')" class="p-2 rounded-lg hover:bg-gray-300 transition-colors" style="background-color: var(--light)">
+                                <span class="icon" style="color: var(--primary)">✏️</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderResumen() {
+            const total = appState.obras.length;
+            const enCurso = appState.obras.filter(o => o.estado === 'en_curso').length;
+            const terminadas = appState.obras.filter(o => o.estado === 'terminada').length;
+            const pausadas = appState.obras.filter(o => o.estado === 'pausada').length;
+
+            document.getElementById('totalObras').textContent = total;
+            document.getElementById('obrasEnCurso').textContent = enCurso;
+            document.getElementById('obrasTerminadas').textContent = terminadas;
+            document.getElementById('obrasPausadas').textContent = pausadas;
+
+            const obrasRecientes = document.getElementById('obrasRecientes');
+            if (appState.obras.length === 0) {
+                obrasRecientes.innerHTML = '<p class="text-gray-500">No hay obras registradas</p>';
+                return;
+            }
+
+            obrasRecientes.innerHTML = appState.obras.slice(0, 5).map(obra => {
+                const estadoInfo = getEstadoInfo(obra.estado);
+                return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <h4 class="font-medium">${obra.nombre}</h4>
+                            <p class="text-sm text-gray-500">${obra.cliente}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded text-xs text-white" style="background-color: ${estadoInfo.color}">
+                            ${estadoInfo.nombre}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderDetalleContent() {
+            const content = document.getElementById('detalleContent');
+            const obra = appState.selectedObra;
+            
+            if (!obra) return;
+
+            switch (appState.activeDetailTab) {
+                case 'resumen':
+                    content.innerHTML = renderResumenDetalle(obra);
+                    break;
+                case 'materiales':
+                    content.innerHTML = renderMateriales(obra);
+                    break;
+                case 'horas':
+                    content.innerHTML = renderHoras(obra);
+                    break;
+                case 'fases':
+                    content.innerHTML = renderFases(obra);
+                    break;
+                case 'fotos':
+                    content.innerHTML = renderFotos(obra);
+                    break;
+                case 'comentarios':
+                    content.innerHTML = renderComentarios(obra);
+                    break;
+            }
+        }
+
+        function renderResumenDetalle(obra) {
+            const estadoInfo = getEstadoInfo(obra.estado);
+            const totalMateriales = obra.materiales.reduce((sum, m) => sum + parseFloat(m.precio || 0), 0);
+            const totalHoras = obra.horas.reduce((sum, h) => sum + parseFloat(h.horas || 0), 0);
+            const fasesPendientes = obra.fasesPendientes.length;
+
+            return `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold mb-2">Información General</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div><strong>Cliente:</strong> ${obra.cliente}</div>
+                            <div><strong>Dirección:</strong> ${obra.direccion || 'No especificada'}</div>
+                            <div><strong>Estado:</strong> 
+                                <span class="ml-2 px-2 py-1 rounded text-white text-xs" style="background-color: ${estadoInfo.color}">
+                                    ${estadoInfo.nombre}
+                                </span>
+                            </div>
+                            <div><strong>Presupuesto:</strong> ${formatCurrency(obra.presupuesto || 0)}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-blue-800">Total Materiales</h4>
+                            <p class="text-2xl font-bold text-blue-600">${formatCurrency(totalMateriales)}</p>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-green-800">Total Horas</h4>
+                            <p class="text-2xl font-bold text-green-600">${totalHoras.toFixed(1)}h</p>
+                        </div>
+                        <div class="bg-purple-50 rounded-lg p-4">
+                            <h4 class="font-semibold text-purple-800">Fases Pendientes</h4>
+                            <p class="text-2xl font-bold text-purple-600">${fasesPendientes}</p>
+                        </div>
+                    </div>
+
+                    ${obra.descripcion ? `
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-semibold mb-2">Descripción</h3>
+                            <p class="text-sm">${obra.descripcion}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderMateriales(obra) {
+            const totalMateriales = obra.materiales.reduce((sum, m) => sum + parseFloat(m.precio || 0), 0);
+
+            return `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold mb-4">Agregar Material</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <input type="text" id="newMaterialNombre" placeholder="Nombre del material" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="newMaterialCantidad" placeholder="Cantidad" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="newMaterialPrecio" placeholder="Precio (€)" class="border rounded-lg px-3 py-2" step="0.01">
+                            <button onclick="agregarMaterial()" class="text-white py-2 px-4 rounded-lg btn gradient-bg">Agregar</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        ${obra.materiales.map(material => `
+                            <div class="bg-white border rounded-lg p-3 flex justify-between items-center">
+                                <div>
+                                    <h4 class="font-medium">${material.nombre}</h4>
+                                    <p class="text-sm text-gray-600">Cantidad: ${material.cantidad}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-bold">${formatCurrency(material.precio)}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-blue-800">Total: ${formatCurrency(totalMateriales)}</h3>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHoras(obra) {
+            const totalHoras = obra.horas.reduce((sum, h) => sum + parseFloat(h.horas || 0), 0);
+
+            return `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold mb-4">Registrar Horas</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <input type="date" id="newHoraFecha" class="border rounded-lg px-3 py-2">
+                            <input type="number" id="newHoraHoras" placeholder="Horas" class="border rounded-lg px-3 py-2" step="0.5">
+                            <input type="text" id="newHoraDescripcion" placeholder="Descripción" class="border rounded-lg px-3 py-2">
+                            <button onclick="agregarHoras()" class="text-white py-2 px-4 rounded-lg btn gradient-bg">Agregar</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        ${obra.horas.map(hora => `
+                            <div class="bg-white border rounded-lg p-3">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-medium">${formatDate(hora.fecha)}</h4>
+                                        <p class="text-sm text-gray-600">${hora.descripcion}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-bold">${hora.horas}h</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-green-800">Total Horas: ${totalHoras.toFixed(1)}h</h3>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFases(obra) {
+            const completadas = fasesComunes.length - obra.fasesPendientes.length;
+            const progreso = (completadas / fasesComunes.length) * 100;
+
+            return `
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="font-semibold mb-4">Fases del Proyecto</h3>
+                        <div class="space-y-2">
+                            ${fasesComunes.map(fase => `
+                                <div class="flex items-center gap-3 p-2 bg-white rounded border">
+                                    <input type="checkbox" ${!obra.fasesPendientes.includes(fase) ? 'checked' : ''} 
+                                           onchange="toggleFase('${fase}')" class="w-4 h-4">
+                                    <span class="${!obra.fasesPendientes.includes(fase) ? 'line-through text-gray-500' : ''}">
+                                        ${fase}
+                                    </span>
+                                    ${!obra.fasesPendientes.includes(fase) ? '<span class="text-green-500 ml-auto">✓</span>' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-purple-50 rounded-lg p-4">
+                        <h3 class="font-semibold text-purple-800">
+                            Progreso: ${completadas} de ${fasesComunes.length} fases completadas
+                        </h3>
+                        <div class="progress-bar mt-2">
+                            <div class="progress-fill" style="width: ${progreso
